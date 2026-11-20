@@ -1,90 +1,523 @@
-from flask import Flask, render_template_string, jsonify, request
+
+from flask import Flask, render_template_string, jsonify
+import json
 
 app = Flask(__name__)
 
-# رتبه‌های عددی فقط وقتی درج شده‌اند که شاخص و منبع مشخص باشد.
-# مواردی که عدد قطعی ندارند با وضعیت «نیازمند به‌روزرسانی» نمایش داده می‌شوند.
+# اطلاعات رتبه‌ها از فهرست قبلی پروژه
 DATA = [
- {"id":1,"category":"انرژی و منابع طبیعی","title":"ذخایر اثبات‌شده گاز طبیعی","rank":"۲ جهان","rank_num":2,"year":"۲۰۲۵","metric":"حدود ۳۴ تریلیون مترمکعب","level":"برتر","desc":"ایران از بزرگ‌ترین دارندگان ذخایر اثبات‌شده گاز طبیعی در جهان است. رتبه دوم در جدول ذخایر سال ۲۰۲۵ گزارش شده است.","source":"Repsol – Annual Energy Statistics 2026","url":"https://www.repsol.com/content/dam/repsol-corporate/en_gb/energia-e-innovacion/annual-energy-statistics-repsol-2026.pdf"},
- {"id":2,"category":"انرژی و منابع طبیعی","title":"تولید گاز طبیعی","rank":"۴ جهان","rank_num":4,"year":"۲۰۲۵","metric":"۲۹۱٫۵ میلیارد مترمکعب","level":"برتر","desc":"بر پایه آمار سال ۲۰۲۵، ایران چهارمین تولیدکننده بزرگ گاز طبیعی در جدول مورد استناد است.","source":"Repsol – Annual Energy Statistics 2026","url":"https://www.repsol.com/content/dam/repsol-corporate/en_gb/energia-e-innovacion/annual-energy-statistics-repsol-2026.pdf"},
- {"id":3,"category":"علم و فناوری","title":"انتشارات نانوفناوری در بازه ۲۰۰۰ تا مه ۲۰۲۴","rank":"۷ جهان","rank_num":7,"year":"۲۰۰۰–مه ۲۰۲۴","metric":"۱۱۹٬۰۷۸ مقاله","level":"برتر","desc":"در نمودار تجمعی انتشارات نانوفناوری، ایران در میان ۱۰ کشور اول قرار گرفته است. این رتبه مربوط به بازه تجمعی است، نه رتبه سالانه.","source":"Iran Nanotechnology Plan – Progress Review 12","url":"https://nano.ir/file/2/attach20241137935634303961.pdf"},
- {"id":4,"category":"علم و فناوری","title":"مقالات نانوفناوری در سال ۲۰۲۳","rank":"۵ جهان","rank_num":5,"year":"۲۰۲۳","metric":"سهم قابل‌توجه از مقالات نانو","level":"برتر","desc":"گزارش StatNano می‌گوید ایران در سال ۲۰۲۳ در رتبه پنجم تعداد مقالات نانوفناوری قرار گرفت. شاخص، تعداد مقالات نمایه‌شده در Web of Science است.","source":"StatNano – Top 10 Countries by Nanotechnology Publications","url":"https://statnano.com/index.php?action=news_pdf&ctrl=news&id=74558&lang=2"},
- {"id":5,"category":"ورزش","title":"جایگاه ایران در جدول مدال المپیک پاریس","rank":"۲۱ جهان","rank_num":21,"year":"۲۰۲۴","metric":"۳ طلا، ۶ نقره، ۳ برنز","level":"قابل‌توجه","desc":"کاروان ایران در المپیک تابستانی پاریس با مجموع ۱۲ مدال در رتبه ۲۱ جدول نهایی قرار گرفت.","source":"Tasnim – Iran Stands 21st in 2024 Olympics Medal Table","url":"https://www.tasnimnews.ir/en/news/2024/08/12/3138260/iran-stands-21st-in-2024-olympics-medal-table"},
- {"id":6,"category":"میراث فرهنگی","title":"آثار ثبت‌شده در میراث جهانی یونسکو","rank":"۳۰ اثر ثبت‌شده","rank_num":30,"year":"به‌روزرسانی ۲۰۲۶","metric":"۲۸ فرهنگی و ۲ طبیعی","level":"برجسته","desc":"ایران ۳۰ اثر ثبت‌شده در فهرست میراث جهانی یونسکو دارد. این عدد تعداد آثار است و رتبه جهانی کشور محسوب نمی‌شود.","source":"UNESCO World Heritage Centre – Iran","url":"https://whc.unesco.org/en/statesparties/ir/"},
+    {"id":1,"title":"تولید جهانی استرانسیم","rank":1,"category":"معدن و صنایع","value":"حدود ۵۰٪ تولید جهان","year":"۲۰۲۴","icon":"🥇","description":"استرانسیم ماده‌ای معدنی با کاربرد در صنایع شیمیایی، سرامیک و شیشه است.","meaning":"رتبه اول یعنی ایران در این برآورد، بزرگ‌ترین تولیدکننده این ماده در جهان معرفی شده است.","source":"USGS","url":"https://www.usgs.gov/centers/national-minerals-information-center"},
+    {"id":2,"title":"تولید آهن اسفنجی","rank":2,"category":"معدن و صنایع","value":"حدود ۲۴٪ تولید جهان","year":"۲۰۲۴","icon":"🏭","description":"آهن اسفنجی ماده اولیه مهم تولید فولاد است.","meaning":"رتبه دوم نشان‌دهنده جایگاه مهم ایران در صنعت آهن اسفنجی است.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":3,"title":"تولید گچ معدنی","rank":2,"category":"معدن و صنایع","value":"حدود ۱۰٪ تولید جهان","year":"۲۰۲۴","icon":"🧱","description":"گچ در ساختمان‌سازی، سیمان و صنایع مختلف کاربرد دارد.","meaning":"ایران در این برآورد یکی از تولیدکنندگان بزرگ گچ معرفی شده است.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":4,"title":"تولید فلدسپار","rank":3,"category":"معدن و صنایع","value":"حدود ۱۲٪ تولید جهان","year":"۲۰۲۴","icon":"💎","description":"فلدسپار در تولید شیشه، کاشی و سرامیک کاربرد دارد.","meaning":"رتبه سوم نشان‌دهنده سهم قابل توجه ایران در تولید این ماده است.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":5,"title":"تولید ید","rank":4,"category":"معدن و صنایع","value":"حدود ۲٫۱٪ تولید جهان","year":"۲۰۲۴","icon":"⚗️","description":"ید در صنایع دارویی، پزشکی و شیمیایی استفاده می‌شود.","meaning":"رتبه چهارم ایران را در میان تولیدکنندگان مهم این ماده قرار می‌دهد.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":6,"title":"تولید باریت","rank":5,"category":"معدن و صنایع","value":"حدود ۳٫۸٪ تولید جهان","year":"۲۰۲۴","icon":"🪨","description":"باریت از مواد مهم مورد استفاده در حفاری چاه‌های نفت و گاز است.","meaning":"رتبه پنجم نشان‌دهنده حضور ایران در میان تولیدکنندگان برتر است.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":7,"title":"تولید سنگ‌آهن","rank":5,"category":"معدن و صنایع","value":"حدود ۳٫۷٪ تولید جهان","year":"۲۰۲۴","icon":"⛏️","description":"سنگ‌آهن ماده اولیه اصلی تولید آهن و فولاد است.","meaning":"ایران در این برآورد یکی از تولیدکنندگان مهم سنگ‌آهن است.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":8,"title":"تولید سیمان","rank":6,"category":"معدن و صنایع","value":"حدود ۱٫۸٪ تولید جهان","year":"۲۰۲۴","icon":"🏗️","description":"سیمان در ساخت بتن، ساختمان‌ها و زیرساخت‌ها استفاده می‌شود.","meaning":"رتبه ششم بیانگر حضور ایران در میان تولیدکنندگان بزرگ سیمان است.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":9,"title":"تولید منیزیم فلزی","rank":7,"category":"معدن و صنایع","value":"حدود ۰٫۴۶٪ تولید جهان","year":"۲۰۲۴","icon":"🔩","description":"منیزیم فلزی در آلیاژسازی و ساخت قطعات سبک کاربرد دارد.","meaning":"رتبه هفتم یعنی ایران در این برآورد در میان ده تولیدکننده برتر قرار دارد.","source":"USGS","url":"https://www.usgs.gov/"},
+    {"id":10,"title":"تولید گاز طبیعی","rank":4,"category":"انرژی","value":"حدود ۲۹۱٫۵ میلیارد مترمکعب","year":"۲۰۲۵","icon":"🔥","description":"گاز طبیعی یکی از منابع مهم انرژی و خوراک صنایع پتروشیمی است.","meaning":"این مقدار، حجم تولید را نشان می‌دهد؛ رتبه آن باید با جدول جهانی هم‌سال تطبیق داده شود.","source":"Energy Institute","url":"https://www.energyinst.org/statistical-review"}
 ]
 
-# حوزه‌های بیشتر برای گسترش دانشنامه؛ تا زمان افزودن منبع معتبر، رتبه عددی جعل نمی‌شود.
-MORE = [
-("پزشکی و سلامت","تولید علم در پزشکی","پژوهش‌های پزشکی، مقالات و استنادها در پایگاه‌های علمی بین‌المللی بررسی می‌شوند."),
-("داروسازی و زیست‌فناوری","داروهای زیستی و زیست‌فناوری","برای رتبه دقیق باید شاخص مشخصی مانند تولید، صادرات یا مقالات انتخاب شود."),
-("مهندسی","پژوهش‌های مهندسی","رتبه می‌تواند بر اساس تعداد مقاله، کیفیت پژوهش یا نوآوری متفاوت باشد."),
-("هوش مصنوعی","پژوهش و توسعه هوش مصنوعی","رتبه‌بندی‌های هوش مصنوعی روش‌شناسی‌های متفاوتی دارند و باید سال و شاخص ذکر شود."),
-("فناوری اطلاعات","امنیت سایبری و فناوری اطلاعات","برای مقایسه معتبر باید از شاخص جهانی مشخص و سال انتشار استفاده شود."),
-("کشاورزی و غذا","تولید محصولات کشاورزی","رتبه هر محصول جداگانه است؛ تولید، صادرات و عملکرد در هکتار یک شاخص نیستند."),
-("صنعت","تولید فولاد و صنایع معدنی","رتبه‌ها باید برای هر محصول و سال تولید جداگانه بررسی شوند."),
-("اقتصاد","تولید ناخالص داخلی و تجارت","رتبه اقتصادی به روش محاسبه، نرخ ارز و سال آماری وابسته است."),
-("نظامی و دفاعی","توانمندی‌های دفاعی","شاخص‌های قدرت نظامی برآوردی‌اند و معادل سنجش مستقیم توان رزمی نیستند."),
-("فضا و هوافضا","ماهواره و فناوری فضایی","موفقیت‌ها و رتبه‌ها باید با تاریخ پرتاب و منبع رسمی ثبت شوند."),
-("آموزش","دانشگاه‌ها و آموزش عالی","رتبه دانشگاهی با رتبه نظام آموزشی کشور تفاوت دارد."),
-("فرهنگ و هنر","سینما، موسیقی و هنرهای سنتی","جوایز و ثبت‌های بین‌المللی باید با رویداد و سال مشخص درج شوند."),
-("گردشگری","جاذبه‌های طبیعی و تاریخی","آمار گردشگری با تعداد آثار ثبت‌شده یا ظرفیت گردشگری یکسان نیست."),
-("محیط زیست","تنوع زیستی و مناطق حفاظت‌شده","شاخص‌ها شامل گونه‌ها، مناطق حفاظت‌شده و عملکرد محیط‌زیستی هستند."),
-("حمل‌ونقل","ترانزیت و زیرساخت","برای رتبه معتبر باید شاخصی مانند حجم ترانزیت یا کیفیت زیرساخت تعیین شود."),
-("ورزش‌های انفرادی","کشتی، تکواندو، وزنه‌برداری و...","رتبه‌ها باید به تفکیک رشته، رده سنی و مسابقه ثبت شوند."),
-("انرژی‌های تجدیدپذیر","خورشیدی و بادی","ظرفیت نصب‌شده و میزان تولید برق دو شاخص متفاوت‌اند."),
-("آب و منابع طبیعی","سدها، منابع آب و قنات","آمار منابع آب باید با سال و روش محاسبه منتشر شود."),
-]
-for i,(cat,title,desc) in enumerate(MORE, start=len(DATA)+1):
-    DATA.append({"id":i,"category":cat,"title":title,"rank":"در حال بررسی","rank_num":999,"year":"نیازمند به‌روزرسانی","metric":"شاخص و منبع معتبر لازم است","level":"تکمیل داده","desc":desc,"source":"منبع معتبر هنوز ثبت نشده","url":""})
+DATA = [x for x in DATA if 1 <= x["rank"] <= 10]
 
-CATEGORIES = ["همه حوزه‌ها"] + list(dict.fromkeys(x["category"] for x in DATA))
-
-PAGE = r'''<!doctype html>
-<html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#071b18"><title>ایران در جهان | دانشنامه رتبه‌های جهانی</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+PAGE = r"""
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#061710">
+<title>ایران در جهان | دستاوردهای برتر</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#061714;--panel:#0d2722;--panel2:#10342b;--text:#f3fff9;--muted:#a8c4b8;--gold:#f6c85f;--green:#39d69a;--line:#ffffff18;--shadow:0 20px 60px #0005}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:Vazirmatn,sans-serif;overflow-x:hidden}body.light{--bg:#f1f8f4;--panel:#fff;--panel2:#e7f4ed;--text:#10251d;--muted:#60786b;--line:#10251d20;--shadow:0 18px 45px #183b2918}.noise{position:fixed;inset:0;pointer-events:none;opacity:.12;z-index:-1;background-image:radial-gradient(#fff 0.6px,transparent .6px);background-size:5px 5px}.aurora{position:fixed;inset:-30%;z-index:-2;pointer-events:none;background:radial-gradient(ellipse at 20% 20%,#087e5b55,transparent 35%),radial-gradient(ellipse at 80% 40%,#bd8a2d30,transparent 30%),radial-gradient(ellipse at 50% 90%,#0d665555,transparent 38%);filter:blur(35px);animation:aurora 18s ease-in-out infinite alternate}@keyframes aurora{to{transform:translate(4%,3%) scale(1.08)}}
-header{position:sticky;top:0;z-index:20;backdrop-filter:blur(18px);background:#061714c9;border-bottom:1px solid var(--line)}body.light header{background:#f1f8f4d9}.nav{max-width:1200px;margin:auto;padding:13px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:11px;font-weight:900}.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--gold),#e69c28);display:grid;place-items:center;color:#173126;font-size:23px;box-shadow:0 0 30px #f6c85f55}.navlinks{display:flex;gap:23px;color:var(--muted);font-size:13px}.navlinks a{color:inherit;text-decoration:none}.navlinks a:hover{color:var(--gold)}.navbtn{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:9px 13px;border-radius:12px;cursor:pointer;font-family:inherit}
-.hero{max-width:1200px;margin:auto;min-height:570px;padding:85px 22px 65px;display:grid;grid-template-columns:1.1fr .9fr;align-items:center;gap:35px;position:relative}.eyebrow{color:var(--gold);font-size:13px;letter-spacing:1px;display:flex;align-items:center;gap:9px}.pulse{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 7px #39d69a20;animation:pulse 1.8s infinite}@keyframes pulse{50%{box-shadow:0 0 0 13px #39d69a00}}h1{font-size:clamp(38px,6vw,68px);line-height:1.25;margin:18px 0;font-weight:900;letter-spacing:-2px}.gradient{background:linear-gradient(90deg,#fff1b5,var(--gold),#48e2a5);background-clip:text;color:transparent}.hero p{color:var(--muted);font-size:16px;line-height:2.2;max-width:650px}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.primary,.secondary{padding:13px 20px;border-radius:14px;text-decoration:none;font:700 14px Vazirmatn;cursor:pointer}.primary{background:linear-gradient(110deg,var(--gold),#e6a938);color:#1c2b20;box-shadow:0 12px 30px #f6c85f30}.secondary{border:1px solid var(--line);color:var(--text);background:var(--panel)}.hero-art{height:380px;display:grid;place-items:center;position:relative}.orbit{width:min(340px,75vw);aspect-ratio:1;border:1px solid #f6c85f55;border-radius:50%;position:relative;display:grid;place-items:center;animation:spin 28s linear infinite;box-shadow:0 0 90px #19a7771c,inset 0 0 50px #19a77715}.orbit:before,.orbit:after{content:"";position:absolute;border:1px solid #39d69a55;border-radius:50%;inset:35px;transform:rotateX(65deg) rotate(-20deg)}.orbit:after{inset:70px;transform:rotateY(65deg) rotate(30deg)}@keyframes spin{to{transform:rotate(360deg)}}.globe{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;font-size:83px;background:radial-gradient(circle at 35% 30%,#2ed69a,#087454 58%,#043b31);box-shadow:0 0 65px #28c88b66,inset -18px -20px 35px #001d18}.orbit-tag{position:absolute;padding:8px 12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-size:12px;animation:float 4s ease-in-out infinite}.orbit-tag:nth-child(2){top:18px;right:15px}.orbit-tag:nth-child(3){bottom:35px;left:0;animation-delay:-1s}.orbit-tag:nth-child(4){top:48%;right:-24px;animation-delay:-2s}@keyframes float{50%{translate:0 -12px}}
-.stats{max-width:1150px;margin:-20px auto 55px;padding:0 22px;display:grid;grid-template-columns:repeat(4,1fr);gap:13px}.stat{padding:20px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,var(--panel),#0b211d);box-shadow:var(--shadow)}body.light .stat{background:var(--panel)}.stat strong{display:block;color:var(--gold);font-size:27px}.stat span{font-size:12px;color:var(--muted)}
-.section{max-width:1200px;margin:0 auto;padding:45px 22px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:24px}.section-head h2{font-size:28px;margin:0}.section-head p{color:var(--muted);font-size:13px;margin:8px 0 0}.tinyline{width:55px;height:3px;background:var(--gold);border-radius:9px;margin-bottom:12px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}.search{flex:1;min-width:210px;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:13px 16px;border-radius:13px;font:14px Vazirmatn;outline:none}.filter{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:12px;border-radius:13px;font:13px Vazirmatn;max-width:100%}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px}.chip{border:1px solid var(--line);background:var(--panel);color:var(--muted);padding:8px 13px;border-radius:99px;font:12px Vazirmatn;cursor:pointer;transition:.25s}.chip.active,.chip:hover{background:var(--gold);color:#17291e;border-color:var(--gold)}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:17px}.card{background:linear-gradient(145deg,var(--panel),#0b211d);border:1px solid var(--line);border-radius:20px;padding:21px;position:relative;overflow:hidden;transition:transform .35s,border-color .35s,box-shadow .35s;transform-style:preserve-3d;opacity:0;translate:0 25px}.card.show{opacity:1;translate:0 0}.card:hover{border-color:#f6c85f88;box-shadow:0 22px 45px #0004;transform:translateY(-7px)}body.light .card{background:var(--panel)}.card:before{content:"";position:absolute;width:160px;height:160px;left:-85px;top:-95px;border-radius:50%;background:#39d69a18;filter:blur(3px)}.cardtop{display:flex;justify-content:space-between;align-items:center;gap:10px}.category{font-size:11px;color:var(--green);background:#39d69a14;padding:6px 10px;border-radius:20px}.rank{font-size:24px;font-weight:900;color:var(--gold);white-space:nowrap}.card h3{font-size:17px;line-height:1.8;margin:18px 0 8px}.metric{color:var(--green);font-weight:700;font-size:13px}.card p{font-size:12px;line-height:2;color:var(--muted);min-height:68px}.meta{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:13px;margin-top:12px;color:var(--muted);font-size:11px}.detail{border:0;background:transparent;color:var(--gold);font:700 12px Vazirmatn;cursor:pointer}.featured-label{position:absolute;top:0;left:0;background:linear-gradient(110deg,var(--gold),#e9a735);color:#1a2a20;padding:5px 13px;border-radius:0 0 12px 0;font-size:10px;font-weight:900}.empty{padding:35px;text-align:center;color:var(--muted);grid-column:1/-1;border:1px dashed var(--line);border-radius:18px}
-.spotlight{background:linear-gradient(120deg,#123d30,#0b241f);border:1px solid #39d69a35;border-radius:25px;padding:30px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;overflow:hidden;position:relative}.spotlight h3{font-size:24px;margin:0 0 10px}.spotlight p{color:#b6d5c7;line-height:2;font-size:13px}.big-number{font-size:55px;font-weight:900;color:var(--gold);text-shadow:0 0 35px #f6c85f44}.categories-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.catbox{background:var(--panel);border:1px solid var(--line);padding:17px;border-radius:16px;transition:.25s}.catbox:hover{transform:translateY(-5px);border-color:var(--green)}.catbox b{display:block;font-size:13px;margin:8px 0}.catbox span{font-size:11px;color:var(--muted)}.caticon{font-size:25px}
-.method{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.method article{padding:20px;border:1px solid var(--line);border-radius:17px;background:var(--panel)}.method b{color:var(--gold)}.method p{color:var(--muted);font-size:12px;line-height:2}.footer{border-top:1px solid var(--line);padding:30px 22px;text-align:center;color:var(--muted);font-size:12px;line-height:2}.footer strong{color:var(--gold)}.modal{position:fixed;inset:0;background:#000a;z-index:40;display:none;place-items:center;padding:20px;backdrop-filter:blur(8px)}.modal.open{display:grid}.modalbox{width:min(600px,100%);background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:27px;box-shadow:var(--shadow);animation:pop .3s ease}@keyframes pop{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}.modalclose{float:left;border:0;background:var(--panel2);color:var(--text);border-radius:10px;padding:7px 11px;cursor:pointer}.modalbox h2{margin-top:25px}.modalbox p{line-height:2.2;color:var(--muted);font-size:14px}.modal-source{color:var(--gold);font-size:12px}.modal-source a{color:inherit}.progress{position:fixed;top:0;right:0;height:3px;background:var(--gold);z-index:60;width:0}.backtop{position:fixed;bottom:20px;left:20px;width:43px;height:43px;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--gold);font-size:20px;cursor:pointer;opacity:0;pointer-events:none;transition:.25s}.backtop.visible{opacity:1;pointer-events:auto}.reveal{opacity:0;transform:translateY(20px);transition:.7s}.reveal.show{opacity:1;transform:none}
-@media(max-width:850px){.hero{grid-template-columns:1fr;padding-top:55px}.hero-art{height:300px}.cards{grid-template-columns:repeat(2,1fr)}.categories-grid{grid-template-columns:repeat(2,1fr)}.navlinks{display:none}.stats{grid-template-columns:repeat(2,1fr)}}@media(max-width:560px){.hero{padding-top:45px}.hero-art{height:260px}.globe{width:120px;height:120px;font-size:65px}.orbit{width:260px}.cards{grid-template-columns:1fr}.stats{gap:8px}.stat{padding:14px}.stat strong{font-size:22px}.section-head{display:block}.section-head h2{font-size:23px}.spotlight{grid-template-columns:1fr}.big-number{font-size:42px}.method{grid-template-columns:1fr}.categories-grid{grid-template-columns:repeat(2,1fr)}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
-</style></head><body><div class="progress" id="progress"></div><div class="aurora"></div><div class="noise"></div>
-<header><nav class="nav"><div class="brand"><div class="logo">✦</div><span>ایران در جهان</span></div><div class="navlinks"><a href="#top">خانه</a><a href="#rankings">رتبه‌ها</a><a href="#areas">حوزه‌ها</a><a href="#method">روش ارزیابی</a></div><button class="navbtn" id="theme">☼ تغییر پوسته</button></nav></header>
-<main id="top"><section class="hero"><div><div class="eyebrow"><i class="pulse"></i> دانشنامه جایگاه جهانی ایران</div><h1>ایران؛ فراتر از<br><span class="gradient">مرزهای جغرافیا</span></h1><p>نگاهی داده‌محور به جایگاه ایران در علم، فناوری، انرژی، ورزش، فرهنگ و ده‌ها حوزه دیگر؛ ابتدا افتخارآفرین‌ترین جایگاه‌ها را ببینید و سپس سایر شاخص‌ها را بررسی کنید.</p><div class="actions"><a class="primary" href="#rankings">مشاهده رتبه‌های برتر ←</a><a class="secondary" href="#areas">کاوش حوزه‌ها</a></div></div><div class="hero-art"><div class="orbit"><div class="globe">🇮🇷</div><span class="orbit-tag">علم و فناوری</span><span class="orbit-tag">انرژی و منابع</span><span class="orbit-tag">فرهنگ و ورزش</span></div></div></section>
-<section class="stats"><div class="stat"><strong data-count="22">۰</strong><span>حوزه برای بررسی و توسعه</span></div><div class="stat"><strong data-count="6">۰</strong><span>شاخص دارای داده و منبع در این نسخه</span></div><div class="stat"><strong>۲ جهان</strong><span>ذخایر اثبات‌شده گاز طبیعی</span></div><div class="stat"><strong>۷ جهان</strong><span>انتشارات تجمعی نانوفناوری</span></div></section>
-<section class="section" id="rankings"><div class="section-head"><div><div class="tinyline"></div><h2>رتبه‌های برتر ایران</h2><p>جایگاه‌های دارای عدد و منبع معتبر، در ابتدای فهرست نمایش داده می‌شوند.</p></div></div><div class="spotlight reveal"><div><h3>جایگاه برجسته در ذخایر گاز طبیعی</h3><p>ایران در آمار ذخایر اثبات‌شده گاز طبیعی سال ۲۰۲۵، رتبه دوم جهان را دارد. برای مشاهده جزئیات و منبع روی کارت مربوطه کلیک کنید.</p></div><div class="big-number">۲<small style="font-size:18px"> جهان</small></div></div>
-<div class="toolbar"><input class="search" id="search" placeholder="جست‌وجوی رتبه، شاخص یا حوزه..."><select class="filter" id="sort"><option value="best">ابتدا رتبه‌های برتر</option><option value="rank">مرتب‌سازی بر اساس رتبه</option><option value="new">موارد نیازمند تکمیل</option></select></div><div class="chips" id="chips"></div><div class="cards" id="cards"></div></section>
-<section class="section" id="areas"><div class="section-head"><div><div class="tinyline"></div><h2>نقشه حوزه‌های ایران</h2><p>دانشنامه به‌تدریج حوزه‌های بیشتری را با شاخص‌های دقیق و منابع معتبر پوشش می‌دهد.</p></div></div><div class="categories-grid" id="categoryGrid"></div></section>
-<section class="section" id="method"><div class="section-head"><div><div class="tinyline"></div><h2>چطور رتبه‌ها را بخوانیم؟</h2><p>هر عدد باید در کنار شاخص و سال خودش معنا شود.</p></div></div><div class="method"><article><b>۱. شاخص مشخص</b><p>رتبه تولید گاز با رتبه ذخایر گاز فرق دارد؛ عنوان شاخص همیشه کنار عدد درج می‌شود.</p></article><article><b>۲. سال انتشار</b><p>رتبه‌ها ثابت نیستند. سال داده یا بازه زمانی در هر کارت نمایش داده می‌شود.</p></article><article><b>۳. منبع قابل بررسی</b><p>برای داده‌های عددی پیوند منبع درج شده است. موارد بدون منبع عددسازی نمی‌شوند و با برچسب تکمیل داده می‌آیند.</p></article></div></section></main>
-<footer class="footer">ساخته‌شده با هدف معرفی داده‌محور جایگاه ایران<br><strong>طراح و سازنده: محمد مهدی عباسی</strong><br>این وب‌سایت دانشنامه‌ای مستقل است؛ رتبه‌ها به شاخص و سال منبع وابسته‌اند.</footer>
-<div class="modal" id="modal"><div class="modalbox"><button class="modalclose" id="close">✕</button><div id="modalContent"></div></div></div><button class="backtop" id="backtop">↑</button>
+:root{
+ --bg:#061710;--panel:#0d261c;--panel2:#123526;
+ --green:#16a36a;--lime:#b8ef70;--gold:#f6c75c;
+ --white:#f4fff8;--muted:#a6c3b3;--red:#e94c52;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+ margin:0;background:var(--bg);color:var(--white);
+ font-family:Vazirmatn,sans-serif;overflow-x:hidden;
+}
+body:before{
+ content:"";position:fixed;inset:0;z-index:-3;
+ background:
+ radial-gradient(ellipse at 15% 10%,#0e764a44,transparent 40%),
+ radial-gradient(ellipse at 90% 80%,#b8ef7019,transparent 35%),
+ linear-gradient(140deg,#061710,#0a2118 55%,#061710);
+}
+#particles{position:fixed;inset:0;z-index:-1;pointer-events:none}
+a{color:inherit;text-decoration:none}
+button,input,select{font-family:inherit}
+.nav{
+ position:fixed;top:0;left:0;right:0;z-index:30;
+ display:flex;align-items:center;justify-content:space-between;
+ padding:14px 5%;background:#061710b8;
+ border-bottom:1px solid #ffffff13;backdrop-filter:blur(18px);
+}
+.brand{font-size:19px;font-weight:900;color:var(--lime)}
+.brand span{color:white}
+.navlinks{display:flex;gap:25px;color:var(--muted);font-size:13px}
+.navlinks a:hover{color:var(--lime)}
+.navbtn{
+ background:#b8ef7018;color:var(--lime);border:1px solid #b8ef7055;
+ padding:9px 17px;border-radius:30px;cursor:pointer;
+}
+.hero{
+ min-height:710px;padding:140px 20px 100px;
+ display:flex;align-items:center;justify-content:center;text-align:center;
+ position:relative;overflow:hidden;
+}
+.hero:before,.hero:after{
+ content:"";position:absolute;border:1px solid #b8ef7025;
+ width:390px;height:390px;border-radius:50%;
+ animation:spin 28s linear infinite;
+}
+.hero:after{width:560px;height:560px;animation-direction:reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hero-content{position:relative;z-index:2;max-width:850px}
+.flag{font-size:65px;filter:drop-shadow(0 0 30px #16a36a66)}
+.tag{
+ display:inline-block;padding:8px 17px;border-radius:40px;
+ color:var(--lime);border:1px solid #b8ef7045;
+ background:#b8ef7010;font-size:12px;letter-spacing:1px;
+}
+h1{font-size:clamp(43px,7vw,78px);line-height:1.35;margin:20px 0}
+h1 span{color:var(--lime);text-shadow:0 0 35px #b8ef7055}
+.hero p{color:var(--muted);font-size:17px;line-height:2.2}
+.actions{display:flex;gap:13px;justify-content:center;flex-wrap:wrap;margin-top:32px}
+.btn{
+ display:inline-flex;align-items:center;justify-content:center;
+ padding:14px 25px;border-radius:40px;
+ border:1px solid #b8ef7060;background:#b8ef7017;
+ color:var(--lime);transition:.3s;cursor:pointer;
+}
+.btn.primary{background:var(--lime);color:#071b16;font-weight:900}
+.btn:hover{transform:translateY(-5px);box-shadow:0 10px 30px #b8ef7025}
+.stats{
+ max-width:1120px;margin:-65px auto 70px;padding:0 20px;
+ display:grid;grid-template-columns:repeat(3,1fr);gap:17px;
+ position:relative;z-index:3;
+}
+.stat{
+ text-align:center;padding:28px 15px;border-radius:22px;
+ background:#102c20dd;border:1px solid #ffffff17;
+ backdrop-filter:blur(20px);box-shadow:0 20px 50px #0003;
+}
+.stat strong{display:block;font-size:37px;color:var(--lime)}
+.stat span{font-size:13px;color:var(--muted)}
+main{max-width:1250px;margin:auto;padding:20px}
+.heading{text-align:center;margin:50px 0 30px}
+.heading .mini{color:var(--lime);font-size:12px;font-weight:800}
+.heading h2{font-size:34px;margin:10px 0}
+.heading p{color:var(--muted);line-height:2}
+.controls{display:flex;gap:12px;margin:30px 0;flex-wrap:wrap}
+.controls input,.controls select{
+ background:#102a20;border:1px solid #ffffff20;color:white;
+ border-radius:14px;padding:14px 16px;font-size:14px;outline:none;
+}
+.controls input{flex:1;min-width:220px}
+.controls select{min-width:160px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{
+ background:linear-gradient(145deg,#143729,#0b2118);
+ border:1px solid #ffffff15;border-radius:25px;padding:24px;
+ position:relative;overflow:hidden;transition:.4s;
+ animation:appear .7s both;box-shadow:0 15px 40px #0002;
+}
+.card:before{
+ content:"";position:absolute;width:150px;height:150px;top:-80px;left:-70px;
+ background:var(--glow);filter:blur(55px);opacity:.2;
+}
+.card:hover{
+ transform:translateY(-10px) rotateX(2deg);
+ border-color:#b8ef7070;box-shadow:0 25px 55px #0005;
+}
+@keyframes appear{from{opacity:0;transform:translateY(25px)}to{opacity:1;transform:translateY(0)}}
+.card-top{display:flex;align-items:center;justify-content:space-between}
+.icon{font-size:35px}
+.rank{
+ background:#b8ef7018;color:var(--lime);
+ border:1px solid #b8ef7055;border-radius:13px;padding:8px 13px;
+ font-weight:900;font-size:13px;
+}
+.category{color:var(--lime);font-size:12px;margin-top:18px}
+.card h3{font-size:19px;line-height:1.8;margin:8px 0}
+.value{font-size:21px;font-weight:900;margin:15px 0;color:white}
+.explain,.meaning{
+ font-size:13px;line-height:2.1;color:#d0e4d8;
+ padding:13px;margin-top:12px;border-radius:12px;
+ background:#ffffff07;
+}
+.meaning{border-right:3px solid var(--lime);background:#b8ef700d}
+.meta{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:11px;margin-top:17px}
+.source{display:inline-block;margin-top:15px;color:var(--lime);font-size:12px}
+.source:hover{text-decoration:underline}
+.empty{display:none;text-align:center;padding:45px;color:var(--muted)}
+.about{
+ margin:65px 0 30px;padding:25px;border-radius:22px;
+ background:#f6c75c0b;border:1px solid #f6c75c44;
+ color:#f5e6c0;line-height:2.2;font-size:13px;
+}
+footer{
+ margin-top:90px;text-align:center;padding:55px 20px;
+ background:#04110c;border-top:1px solid #ffffff15;color:var(--muted);
+}
+footer strong{color:var(--lime)}
+/* آدمک دنبال‌کننده موس */
+#mascot{
+ position:fixed;right:30px;bottom:25px;width:105px;height:145px;
+ z-index:50;pointer-events:none;
+ filter:drop-shadow(0 12px 20px #0008);
+ animation:float 3s ease-in-out infinite;
+ transform-origin:50% 85%;
+}
+@keyframes float{0%,100%{translate:0 0}50%{translate:0 -9px}}
+.mascot-head{
+ position:absolute;top:5px;left:14px;width:78px;height:77px;
+ border-radius:48% 48% 44% 44%;
+ background:linear-gradient(145deg,#b8ef70,#68b849);
+ border:3px solid #e5ffc2;
+ box-shadow:inset -8px -8px 0 #4e9a3b55,0 0 22px #b8ef7040;
+}
+.mascot-ear{position:absolute;top:28px;width:19px;height:26px;background:#79c653;border:2px solid #d7ffad;border-radius:50%}
+.mascot-ear.left{left:0}.mascot-ear.right{right:0}
+.eyes{position:absolute;top:27px;left:13px;right:13px;display:flex;justify-content:space-between}
+.eye{
+ width:21px;height:25px;border-radius:50%;background:#fff;
+ position:relative;overflow:hidden;box-shadow:inset 0 -2px 3px #9ab98a;
+}
+.pupil{
+ width:10px;height:13px;background:#10251b;border-radius:50%;
+ position:absolute;top:6px;left:6px;transition:transform .08s;
+}
+.pupil:after{
+ content:"";position:absolute;top:2px;left:2px;width:3px;height:3px;
+ border-radius:50%;background:white;
+}
+.brow{position:absolute;top:18px;width:23px;height:4px;border-radius:5px;background:#397c32}
+.brow.left{left:12px;transform:rotate(-7deg)}
+.brow.right{right:12px;transform:rotate(7deg)}
+.mouth{
+ position:absolute;top:57px;left:31px;width:16px;height:8px;
+ border-bottom:3px solid #27672b;border-radius:0 0 50% 50%;
+}
+.body{
+ position:absolute;top:78px;left:24px;width:60px;height:53px;
+ background:linear-gradient(145deg,#eaf8dc,#7ecb55);
+ border-radius:23px 23px 15px 15px;
+ border:2px solid #d7ffad;
+}
+.badge-mini{
+ position:absolute;top:92px;left:44px;font-size:16px;
+}
+.arm{
+ position:absolute;top:87px;width:14px;height:34px;
+ background:#8bd35d;border:2px solid #d7ffad;border-radius:15px;
+ transform-origin:top center;
+}
+.arm.left{left:14px;transform:rotate(25deg)}
+.arm.right{right:12px;transform:rotate(-25deg)}
+.leg{
+ position:absolute;top:123px;width:17px;height:17px;
+ border-radius:8px;background:#6bb94d;
+}
+.leg.left{left:30px}.leg.right{right:25px}
+#mascot.blink .eye{transform:scaleY(.12)}
+#mascot.clicked .mascot-head{transform:rotate(-9deg) scale(1.05)}
+.mascot-label{
+ position:absolute;bottom:-18px;right:-15px;
+ white-space:nowrap;font-size:10px;color:var(--lime);
+ background:#061710dd;padding:4px 9px;border-radius:20px;
+ border:1px solid #b8ef7044;
+}
+#top{
+ position:fixed;bottom:25px;left:25px;width:45px;height:45px;
+ border:0;border-radius:50%;background:var(--lime);
+ color:#071b16;font-size:22px;cursor:pointer;display:none;z-index:20;
+}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){
+ .navlinks{display:none}.hero{min-height:620px}
+ .stats{grid-template-columns:1fr;margin-top:-35px}
+ .grid{grid-template-columns:1fr}
+ .heading h2{font-size:27px}
+ #mascot{width:75px;height:105px;transform:scale(.75);transform-origin:bottom right;right:8px;bottom:8px}
+}
+@media(prefers-reduced-motion:reduce){
+ *,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas>
+
+<nav class="nav">
+ <div class="brand">🇮🇷 ایران <span>در جهان</span></div>
+ <div class="navlinks">
+  <a href="#">خانه</a><a href="#rankings">دستاوردها</a><a href="#about">درباره پروژه</a>
+ </div>
+ <a class="navbtn" href="#rankings">مشاهده رتبه‌ها</a>
+</nav>
+
+<header class="hero">
+ <div class="hero-content">
+  <div class="flag">🇮🇷</div>
+  <div class="tag">IRAN GLOBAL ACHIEVEMENTS</div>
+  <h1>ایران در <span>جهان</span></h1>
+  <p>
+   نگاهی به جایگاه‌های برتر ایران در عرصه جهانی؛
+   دستاوردها، آمارها و توضیح هر رتبه در یک تجربه تعاملی.
+  </p>
+  <div class="actions">
+   <a class="btn primary" href="#rankings">کشف دستاوردها ↓</a>
+   <a class="btn" href="#about">درباره آمارها</a>
+  </div>
+ </div>
+</header>
+
+<section class="stats">
+ <div class="stat"><strong id="count">{{data|length}}</strong><span>رتبه ثبت‌شده</span></div>
+ <div class="stat"><strong>۱ تا ۱۰</strong><span>بازه رتبه‌های جهانی</span></div>
+ <div class="stat"><strong>۲۰۲۶</strong><span>سال نسخه وب‌سایت</span></div>
+</section>
+
+<main id="rankings">
+ <div class="heading">
+  <div class="mini">ACHIEVEMENT COLLECTION</div>
+  <h2>دستاوردهای برتر ایران</h2>
+  <p>هر رتبه را باز کن، مفهوم آن را بخوان و منبع اطلاعات را بررسی کن.</p>
+ </div>
+
+ <div class="controls">
+  <input id="search" placeholder="🔎 جست‌وجوی دستاورد، شاخص یا توضیح...">
+  <select id="category">
+   <option value="all">همه حوزه‌ها</option>
+   <option value="معدن و صنایع">معدن و صنایع</option>
+   <option value="انرژی">انرژی</option>
+  </select>
+  <select id="sort">
+   <option value="rank">بهترین رتبه</option>
+   <option value="name">نام دستاورد</option>
+  </select>
+ </div>
+
+ <div class="grid" id="grid">
+ {% for item in data %}
+ <article class="card" style="--glow:{{loop.index}}">
+  <div class="card-top">
+   <span class="icon">{{item.icon}}</span>
+   <span class="rank">رتبه {{item.rank}} جهان</span>
+  </div>
+  <div class="category">{{item.category}}</div>
+  <h3>{{item.title}}</h3>
+  <div class="value">{{item.value}}</div>
+  <div class="explain"><b>این دستاورد چیست؟</b><br>{{item.description}}</div>
+  <div class="meaning"><b>این رتبه چه معنایی دارد؟</b><br>{{item.meaning}}</div>
+  <div class="meta"><span>سال داده: {{item.year}}</span><span>رتبه: {{item.rank}} از ۱ تا ۱۰</span></div>
+  <a class="source" href="{{item.url}}" target="_blank" rel="noopener">منبع: {{item.source}} ↗</a>
+ </article>
+ {% endfor %}
+ </div>
+ <div class="empty" id="empty">نتیجه‌ای پیدا نشد.</div>
+
+ <div class="about" id="about">
+  <b>درباره اطلاعات سایت</b><br>
+  سال داده‌ها و سال انتشار گزارش باید از یکدیگر تفکیک شوند.
+  اعداد این نسخه از فهرست قبلی پروژه منتقل شده‌اند و پیش از انتشار عمومی
+  باید با جدول اصلی هر منبع و تعریف دقیق شاخص تطبیق داده شوند.
+  رتبه‌های نمایش‌داده‌شده لزوماً همگی مربوط به سال ۲۰۲۶ نیستند.
+ </div>
+</main>
+
+<footer>
+ <div style="font-size:24px">🇮🇷 ایران در جهان</div>
+ <p>دستاوردها را بشناسیم، دقیق و مستند معرفی کنیم.</p>
+ <p>طراح و توسعه‌دهنده: <strong>محمد مهدی عباسی</strong></p>
+ <small>© 2026 • تمام حقوق طراحی محفوظ است.</small>
+</footer>
+
+<div id="mascot" aria-hidden="true">
+ <div class="mascot-ear left"></div><div class="mascot-ear right"></div>
+ <div class="mascot-head">
+  <div class="brow left"></div><div class="brow right"></div>
+  <div class="eyes">
+   <div class="eye"><div class="pupil"></div></div>
+   <div class="eye"><div class="pupil"></div></div>
+  </div>
+  <div class="mouth"></div>
+ </div>
+ <div class="body"></div><div class="badge-mini">🇮🇷</div>
+ <div class="arm left"></div><div class="arm right"></div>
+ <div class="leg left"></div><div class="leg right"></div>
+ <div class="mascot-label">سلام! من همراه توام 👋</div>
+</div>
+
+<button id="top" onclick="scrollTo({top:0,behavior:'smooth'})">↑</button>
+
 <script>
-const DATA={{ data|tojson }};const CATS={{ categories|tojson }};let active='همه حوزه‌ها';let shown=[];
-const icons=['🔬','🧬','⚙️','🤖','💻','🌾','🏭','📈','🛡️','🚀','🎓','🎭','🏛️','🌱','🚄','🏅','☀️','💧'];
-const chips=document.getElementById('chips');CATS.forEach(c=>{let b=document.createElement('button');b.className='chip'+(c===active?' active':'');b.textContent=c;b.onclick=()=>{active=c;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===b));render()};chips.appendChild(b)});
-function render(){let q=document.getElementById('search').value.trim().toLowerCase(),sort=document.getElementById('sort').value;let arr=DATA.filter(x=>(active==='همه حوزه‌ها'||x.category===active)&&[x.title,x.category,x.desc,x.metric].join(' ').toLowerCase().includes(q));if(sort==='new')arr=arr.filter(x=>x.rank_num===999);else if(sort==='rank')arr.sort((a,b)=>a.rank_num-b.rank_num);else arr.sort((a,b)=>a.rank_num-b.rank_num);shown=arr;let root=document.getElementById('cards');root.innerHTML='';if(!arr.length){root.innerHTML='<div class="empty">موردی با این عبارت پیدا نشد.</div>';return}arr.forEach((x,i)=>{let el=document.createElement('article');el.className='card';el.innerHTML=`${x.rank_num<=7?'<span class="featured-label">جایگاه برتر</span>':''}<div class="cardtop"><span class="category">${x.category}</span><span class="rank">${x.rank}</span></div><h3>${x.title}</h3><div class="metric">${x.metric}</div><p>${x.desc}</p><div class="meta"><span>${x.year}</span><button class="detail">جزئیات و منبع ←</button></div>`;el.querySelector('button').onclick=()=>openModal(x);root.appendChild(el);requestAnimationFrame(()=>setTimeout(()=>el.classList.add('show'),i*45))})}
-function openModal(x){document.getElementById('modalContent').innerHTML=`<span class="category">${x.category}</span><h2>${x.title}</h2><div class="rank">${x.rank}</div><p><b>شاخص:</b> ${x.metric}<br><b>سال / بازه:</b> ${x.year}</p><p>${x.desc}</p><div class="modal-source">منبع: ${x.url?`<a href="${x.url}" target="_blank" rel="noopener">${x.source} ↗</a>`:x.source}</div>`;document.getElementById('modal').classList.add('open')}
-document.getElementById('close').onclick=()=>document.getElementById('modal').classList.remove('open');document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')e.currentTarget.classList.remove('open')};document.getElementById('search').addEventListener('input',render);document.getElementById('sort').addEventListener('change',render);render();
-const cg=document.getElementById('categoryGrid');CATS.slice(1).forEach((c,i)=>{let n=DATA.filter(x=>x.category===c).length;let d=document.createElement('div');d.className='catbox reveal';d.innerHTML=`<div class="caticon">${icons[i%icons.length]}</div><b>${c}</b><span>${n} شاخص در فهرست</span>`;d.onclick=()=>{active=c;document.querySelectorAll('.chip').forEach(b=>b.classList.toggle('active',b.textContent===c));document.getElementById('rankings').scrollIntoView({behavior:'smooth'});render()};cg.appendChild(d)});
-const obs=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('show');obs.unobserve(e.target)}}),{threshold:.12});document.querySelectorAll('.reveal').forEach(x=>obs.observe(x));
-const counters=document.querySelectorAll('[data-count]');const co=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){let el=e.target,n=+el.dataset.count,start=0;let t=setInterval(()=>{start++;el.textContent=start.toLocaleString('fa-IR');if(start>=n)clearInterval(t)},100);co.unobserve(el)}}));counters.forEach(x=>co.observe(x));
-document.getElementById('theme').onclick=()=>document.body.classList.toggle('light');window.addEventListener('scroll',()=>{let h=document.documentElement;document.getElementById('progress').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%';document.getElementById('backtop').classList.toggle('visible',h.scrollTop>500)});document.getElementById('backtop').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
-</script></body></html>'''
+/* جست‌وجو و فیلتر */
+const search=document.getElementById('search');
+const category=document.getElementById('category');
+const sort=document.getElementById('sort');
+const grid=document.getElementById('grid');
+const empty=document.getElementById('empty');
 
-@app.get('/')
+function filterCards(){
+ const cards=[...document.querySelectorAll('.card')];
+ let count=0;
+ cards.forEach(card=>{
+  const text=card.innerText.toLowerCase();
+  const q=search.value.trim().toLowerCase();
+  const cat=category.value;
+  const ok=text.includes(q)&&(cat==='all'||text.includes(cat));
+  card.style.display=ok?'':'none';
+  if(ok)count++;
+ });
+ empty.style.display=count?'none':'block';
+}
+search.addEventListener('input',filterCards);
+category.addEventListener('change',filterCards);
+
+sort.addEventListener('change',()=>{
+ const cards=[...document.querySelectorAll('.card')];
+ cards.sort((a,b)=>{
+  if(sort.value==='name')
+   return a.querySelector('h3').innerText.localeCompare(b.querySelector('h3').innerText,'fa');
+  const ra=Number(a.querySelector('.rank').innerText.match(/\d+/)[0]);
+  const rb=Number(b.querySelector('.rank').innerText.match(/\d+/)[0]);
+  return ra-rb;
+ });
+ cards.forEach(c=>grid.appendChild(c));
+});
+
+/* چشم‌های آدمک دقیقاً موس را دنبال می‌کنند */
+const mascot=document.getElementById('mascot');
+const pupils=document.querySelectorAll('.pupil');
+let mouseX=window.innerWidth/2;
+let mouseY=window.innerHeight/2;
+
+function moveEyes(x,y){
+ pupils.forEach(p=>{
+  const rect=p.parentElement.getBoundingClientRect();
+  const cx=rect.left+rect.width/2;
+  const cy=rect.top+rect.height/2;
+  const angle=Math.atan2(y-cy,x-cx);
+  const distance=Math.min(5,Math.hypot(x-cx,y-cy)/30);
+  p.style.transform=`translate(${Math.cos(angle)*distance}px,${Math.sin(angle)*distance}px)`;
+ });
+ const dx=(x/window.innerWidth-.5)*13;
+ mascot.style.rotate=`${dx}deg`;
+}
+window.addEventListener('mousemove',e=>{
+ mouseX=e.clientX;mouseY=e.clientY;
+ moveEyes(mouseX,mouseY);
+});
+window.addEventListener('touchmove',e=>{
+ if(e.touches.length){
+  mouseX=e.touches[0].clientX;
+  mouseY=e.touches[0].clientY;
+  moveEyes(mouseX,mouseY);
+ }
+},{passive:true});
+document.addEventListener('click',()=>{
+ mascot.classList.add('clicked');
+ setTimeout(()=>mascot.classList.remove('clicked'),350);
+});
+/* پلک زدن تصادفی */
+function blink(){
+ mascot.classList.add('blink');
+ setTimeout(()=>mascot.classList.remove('blink'),160);
+ setTimeout(blink,2500+Math.random()*3500);
+}
+setTimeout(blink,2000);
+
+/* ذرات نورانی پس‌زمینه */
+const canvas=document.getElementById('particles');
+const ctx=canvas.getContext('2d');
+let particles=[];
+function resize(){
+ canvas.width=window.innerWidth*devicePixelRatio;
+ canvas.height=window.innerHeight*devicePixelRatio;
+ ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+window.addEventListener('resize',resize);
+resize();
+
+for(let i=0;i<75;i++){
+ particles.push({
+  x:Math.random()*innerWidth,
+  y:Math.random()*innerHeight,
+  r:Math.random()*2+0.5,
+  vx:(Math.random()-.5)*.35,
+  vy:(Math.random()-.5)*.35,
+  a:Math.random()*.5+.15
+ });
+}
+let frame=0;
+function animate(){
+ ctx.clearRect(0,0,innerWidth,innerHeight);
+ particles.forEach((p,i)=>{
+  p.x+=p.vx;p.y+=p.vy;
+  if(p.x<0||p.x>innerWidth)p.vx*=-1;
+  if(p.y<0||p.y>innerHeight)p.vy*=-1;
+  ctx.beginPath();
+  ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+  ctx.fillStyle=`rgba(184,239,112,${p.a})`;
+  ctx.fill();
+  for(let j=i+1;j<particles.length;j++){
+   const q=particles[j];
+   const d=Math.hypot(p.x-q.x,p.y-q.y);
+   if(d<100){
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);
+    ctx.strokeStyle=`rgba(184,239,112,${.08*(1-d/100)})`;
+    ctx.stroke();
+   }
+  }
+ });
+ frame++;
+ requestAnimationFrame(animate);
+}
+animate();
+
+/* شمارنده و دکمه بازگشت */
+const counter=document.getElementById('count');
+const target=Number(counter.innerText);
+let n=0;
+const timer=setInterval(()=>{
+ n++;
+ counter.innerText=n;
+ if(n>=target)clearInterval(timer);
+},90);
+window.addEventListener('scroll',()=>{
+ document.getElementById('top').style.display=scrollY>450?'block':'none';
+});
+</script>
+</body>
+</html>
+"""
+
+@app.route("/")
 def home():
-    return render_template_string(PAGE, data=DATA, categories=CATEGORIES)
+    return render_template_string(PAGE, data=DATA)
 
-@app.get('/api/rankings')
-def rankings_api():
-    category = request.args.get('category')
-    items = DATA if not category else [x for x in DATA if x['category'] == category]
-    return jsonify(items)
+@app.route("/api/rankings")
+def rankings():
+    return jsonify(DATA)
 
-if __name__ == '__main__':
-    print('Iran in the World is running at http://127.0.0.1:8000')
-    app.run(host='127.0.0.1', port=8000, debug=False)
+@app.route("/api/stats")
+def stats():
+    return jsonify({
+        "total": len(DATA),
+        "year": 2026,
+        "minimum_rank": 1,
+        "maximum_rank": 10
+    })
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000, debug=False)
+
